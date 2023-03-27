@@ -10,7 +10,7 @@ on:
     branches: [master]
 
 jobs:
-  build-prod:
+  CI:
     if: github.event_name == 'pull_request' && github.ref == 'refs/heads/development'
     runs-on: ubuntu-latest
     permissions:
