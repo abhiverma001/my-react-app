@@ -510,7 +510,16 @@ jobs:
 - here we will create a new step in each workflow, it will check if any workflow gets failed a issue will be created automatically and will be assign to specific person.
 - Lets add a new step, if anyone create a pull request for Master and Development, it will check the running workflows status, if any workflow fails it will create an issue and assing the issue to that member who created the pull request.
 ```
-- name: Open Issue If Workflow Fails
+
+jobs:
+  build-prod:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write #to be able to publish a Github release
+      issues: write #to be able to comment on released issues
+      pull-requests: write #to be able to comments on release pull requests
+    steps:
+    - name: Open Issue If Workflow Fails
          if: faliure() && github.event_name == 'pull_request'
          run: |
            curl --request POST \
