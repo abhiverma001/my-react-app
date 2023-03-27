@@ -1,11 +1,14 @@
 name: Deploy Application On Prod Along with Release notes and Code Coverange
 on:
-  push:
-    branches: [master]
+  workflow_dispatch
 
 jobs:
   build-prod:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write #to be able to publish a Github release
+      issues: write #to be able to comment on released issues
+      pull-requests: write #to be able to comments on release pull requests
     steps:
       - uses: actions/checkout@v2
       - name: Cache node_modules
@@ -42,7 +45,9 @@ jobs:
           name: build
           path: build
 
-      - name: Create a Release
+
+      - name: Create Github Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -55,9 +60,32 @@ jobs:
       - name: install the 'surge' to Deploy the our build
         run: npm install -g surge
 
-      - name: Deploy to Prod
+      - name: Deploy to Staging
+        if: github.event_name == 'push' && github.ref == 'refs/heads/development'
         run: surge --project ./build --domain
           prod-my-react-app-abhiverma001.surge.sh
         env:
           SURGE_LOGIN: ${{ secrets.SURGE_LOGIN }} #To get the login id you can run command locally 'surge whoami'.
           SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }} #To get the tocken you can run the command locally 'surge token' then create the secrets in github repo
+  
+
+      - name: Deploy to Prod
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: surge --project ./build --domain
+          prod-my-react-app-abhiverma001.surge.sh
+        env:
+          SURGE_LOGIN: ${{ secrets.SURGE_LOGIN }} #To get the login id you can run command locally 'surge whoami'.
+          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }} #To get the tocken you can run the command locally 'surge token' then create the secrets in github repo
+
+      - name: Open Issue If Workflow Fails
+        if: failure() && github.event_name == 'push'
+        run: |
+          curl --request POST \
+          --url https://api.github.com/repos/${{ github.repository }}/issues \
+          --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+          --header 'content-type: application/json' \
+          --data '{
+          "title": "Automated issues for commit: ${{ github.sha }}",
+          "body": "This issue was automatically created by the GitHub Actions workflow **${{ github.workflow }}**. \n\n The commit hash was: _${{ github.sha }}_.",
+          "assignees": ["${{ github.event.pull_request.user.login }}"]     
+          }'

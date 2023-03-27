@@ -277,9 +277,9 @@ module.exports = {
 -'npx semantic-release'  #running this command locally, you will get an idea how this will happen in your github workflow.
 
 ## Work on workflow for Master Branch.
-- Lets configure semantic in our workflow
+- Lets configure semantic Release stesp in our workflow
 ```
-name: Deploy Application On Prod Along with Release notes and Code Coverange
+ame: Deploy Application On Prod Along with Release notes and Code Coverange
 on:
   push:
     branches: [master]
@@ -287,6 +287,10 @@ on:
 jobs:
   build-prod:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write #to be able to publish a Github release
+      issues: write #to be able to comment on released issues
+      pull-requests: write #to be able to comments on release pull requests
     steps:
       - uses: actions/checkout@v2
       - name: Cache node_modules
@@ -322,11 +326,16 @@ jobs:
         with:
           name: build
           path: build
-      
-      - name: Create a Release
+
+      - name: Create Github Release
         run: npx semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.MY_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: upload coverage reports to Codecov #Upload coverage report on Codecov
+        run: npx codecov
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: install the 'surge' to Deploy the our build
         run: npm install -g surge
@@ -337,10 +346,11 @@ jobs:
         env:
           SURGE_LOGIN: ${{ secrets.SURGE_LOGIN }} #To get the login id you can run command locally 'surge whoami'.
           SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }} #To get the tocken you can run the command locally 'surge token' then create the secrets in github repo
+
 ```
--git add A
--git commit -m"feat: some feature"
--git push
+- git add A
+- git commit -m"feat: some feature"
+- git push
 
 - for testing purpose you can delete the protection rule for your master branch for time being only, later you can enable it again.
 - once this workflow is run, check the release option in your repo and check the notes, also refer the workflow output
@@ -510,7 +520,16 @@ jobs:
 - here we will create a new step in each workflow, it will check if any workflow gets failed a issue will be created automatically and will be assign to specific person.
 - Lets add a new step, if anyone create a pull request for Master and Development, it will check the running workflows status, if any workflow fails it will create an issue and assing the issue to that member who created the pull request.
 ```
-- name: Open Issue If Workflow Fails
+
+jobs:
+  build-prod:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write #to be able to publish a Github release
+      issues: write #to be able to comment on released issues
+      pull-requests: write #to be able to comments on release pull requests
+    steps:
+    - name: Open Issue If Workflow Fails
          if: faliure() && github.event_name == 'pull_request'
          run: |
            curl --request POST \
