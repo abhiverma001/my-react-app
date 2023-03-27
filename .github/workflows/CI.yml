@@ -1,7 +1,7 @@
 name: CI
 on:
   pull_request:
-    branches: [master, development, workflow]
+    branches: [master, development]
 
   push:
     branches: [master, development]
@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    if: github.event_name == 'pull_request' && github.ref == 'refs/heads/development'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write #to be able to publish a Github release
