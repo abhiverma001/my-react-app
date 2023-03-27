@@ -277,9 +277,9 @@ module.exports = {
 -'npx semantic-release'  #running this command locally, you will get an idea how this will happen in your github workflow.
 
 ## Work on workflow for Master Branch.
-- Lets configure semantic in our workflow
+- Lets configure semantic Release stesp in our workflow
 ```
-name: Deploy Application On Prod Along with Release notes and Code Coverange
+ame: Deploy Application On Prod Along with Release notes and Code Coverange
 on:
   push:
     branches: [master]
@@ -287,6 +287,10 @@ on:
 jobs:
   build-prod:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write #to be able to publish a Github release
+      issues: write #to be able to comment on released issues
+      pull-requests: write #to be able to comments on release pull requests
     steps:
       - uses: actions/checkout@v2
       - name: Cache node_modules
@@ -322,11 +326,16 @@ jobs:
         with:
           name: build
           path: build
-      
-      - name: Create a Release
+
+      - name: Create Github Release
         run: npx semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.MY_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: upload coverage reports to Codecov #Upload coverage report on Codecov
+        run: npx codecov
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: install the 'surge' to Deploy the our build
         run: npm install -g surge
@@ -337,6 +346,7 @@ jobs:
         env:
           SURGE_LOGIN: ${{ secrets.SURGE_LOGIN }} #To get the login id you can run command locally 'surge whoami'.
           SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }} #To get the tocken you can run the command locally 'surge token' then create the secrets in github repo
+
 ```
 - git add A
 - git commit -m"feat: some feature"
