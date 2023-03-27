@@ -544,6 +544,112 @@ jobs:
            
 ```
 
+## Completed CI-CD in single Yml file.
+```
+name: CI
+on:
+  pull_request:
+    branches: [master, development]
+
+  push:
+    branches: [master, development]
+
+  release:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write #to be able to publish a Github release
+      issues: write #to be able to comment on released issues
+      pull-requests: write #to be able to comments on release pull requests
+    steps:
+      
+      - uses: actions/checkout@v2
+      - name: Cache node_modules
+        uses: actions/cache@v1
+        with:
+          path: ~/.npm #this is default npm cache path for linux runner
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lok.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+          #this is used, if github doesn't find any cache in above key, it will take the older cache from this.
+
+      - name: Use Nodejs
+        uses: actions/setup-node@v1
+        with:
+          node-version: "18.x"
+      - run: npm ci #this is similer to install the npm
+      - run: npm run format #This will arrange the code in correct format
+      - run: npm run format:check #This will check the code format
+      - run: npm test -- --coverage #This will to the testing of code.
+        env:
+          CI: true
+      - name: Upload Test Coverage #it will upload the code test inside the coverage folder named code-coverage in our repo
+        uses: actions/upload-artifact@v1
+        with:
+          name: code-coverage
+          path: coverage
+
+      - name: Build project
+        if: github.event_name == 'push'
+        run: npm run build
+
+      - name: Upload build folder #used for artifacts, if build is success, we will have to build artifacts inside our build folder in repo.
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v1
+        with:
+          name: build
+          path: build
+
+      - name: Create Github Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: upload coverage reports to Codecov #Upload coverage report on Codecov
+        if: github.event_name == 'push'
+        run: npx codecov
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: install the 'surge' to Deploy the our build
+        if: github.event_name == 'push'
+        run: npm install -g surge
+
+      - name: Deploy to Staging
+        if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+        run: surge --project ./build --domain
+          dev-my-react-app-abhiverma001.surge.sh
+        env:
+          SURGE_LOGIN: ${{ secrets.SURGE_LOGIN }} #To get the login id you can run command locally 'surge whoami'.
+          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }} #To get the tocken you can run the command locally 'surge token' then create the secrets in github repo
+
+      - name: Deploy to Prod
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: surge --project ./build --domain
+          prod-my-react-app-abhiverma001.surge.sh
+        env:
+          SURGE_LOGIN: ${{ secrets.SURGE_LOGIN }} #To get the login id you can run command locally 'surge whoami'.
+          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }} #To get the tocken you can run the command locally 'surge token' then create the secrets in github repo
+
+      - name: Open Issue If Workflow Fails
+        if: failure() && github.event_name == 'pull_request'
+        run: |
+          curl --request POST \
+          --url https://api.github.com/repos/${{ github.repository }}/issues \
+          --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+          --header 'content-type: application/json' \
+          --data '{
+          "title": "Automated issues for commit: ${{ github.sha }}",
+          "body": "This issue is automatically created by the GitHub Actions workflow **${{ github.workflow }}**. \n\n The commit hash was: _${{ github.sha }}_.",
+          "assignees": ["${{ github.event.pull_request.user.login }}"]     
+          }'
+
+```
+
            
       
 
