@@ -75,7 +75,7 @@ jobs:
           SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }} #To get the tocken you can run the command locally 'surge token' then create the secrets in github repo
 
       - name: Open Issue If Workflow Fails
-        if: failure() && github.event_name == 'push'
+        if: failure() && github.event_name == 'pull_request'
         run: |
           curl --request POST \
           --url https://api.github.com/repos/${{ github.repository }}/issues \
